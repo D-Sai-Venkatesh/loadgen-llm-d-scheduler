@@ -1,5 +1,5 @@
 # Generated scenario: production-mix
-# Programs: 2  total_requests: 80  max-num-seqs: 16
+# Programs: 6  total_requests: 400  max-num-seqs: 2
 name: production-mix
 model: meta-llama/Llama-3.1-8B-Instruct
 infra:
@@ -20,21 +20,57 @@ test:
     prompt_tokens: 128
     max_tokens: 64
 programs:
-  fg-heavy-aggressive-000:
-    total_requests: 40
-    concurrency: 4
-    prompt_tokens: 2000
-    max_tokens: 2000
-    start_time: 0
-    request_timeout: 1200
-    no_fairness_header: false
-    initial_request_interval: 2
   fg-light-slow-000:
     total_requests: 40
     concurrency: 4
     prompt_tokens: 100
     max_tokens: 50
-    start_time: 1.5
+    start_time: 0
+    request_timeout: 1200
+    no_fairness_header: false
+    initial_request_interval: 2
+  fg-light-slow-001:
+    total_requests: 40
+    concurrency: 4
+    prompt_tokens: 100
+    max_tokens: 50
+    start_time: 150
+    request_timeout: 1200
+    no_fairness_header: false
+    initial_request_interval: 2
+  fg-light-slow-002:
+    total_requests: 40
+    concurrency: 4
+    prompt_tokens: 100
+    max_tokens: 50
+    start_time: 300
+    request_timeout: 1200
+    no_fairness_header: false
+    initial_request_interval: 2
+  fg-light-slow-003:
+    total_requests: 40
+    concurrency: 4
+    prompt_tokens: 100
+    max_tokens: 50
+    start_time: 450
+    request_timeout: 1200
+    no_fairness_header: false
+    initial_request_interval: 2
+  fg-light-slow-004:
+    total_requests: 40
+    concurrency: 4
+    prompt_tokens: 100
+    max_tokens: 50
+    start_time: 600
+    request_timeout: 1200
+    no_fairness_header: false
+    initial_request_interval: 2
+  fg-heavy-aggressive-000:
+    total_requests: 200
+    concurrency: 4
+    prompt_tokens: 2000
+    max_tokens: 2000
+    start_time: 0
     request_timeout: 1200
     no_fairness_header: false
     initial_request_interval: 2
