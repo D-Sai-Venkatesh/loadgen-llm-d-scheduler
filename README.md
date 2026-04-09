@@ -47,7 +47,7 @@ The script will:
 - `program-aware.yaml` — EWMA wait-time strategy
 - `program-aware-drr.yaml` — Deficit Round-Robin strategy
 - `program-aware-throughput.yaml` — throughput-optimizing strategy
-- `program-aware-service.yaml` — service-time tracking
+- `program-aware-las.yaml` — Least Attained Service (LAS) strategy
 - `program-aware-rr.yaml` — simple round-robin (via program-aware plugin)
 - `baseline.yaml` — no fairness policy
 

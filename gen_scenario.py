@@ -273,7 +273,7 @@ def generate(cfg: dict, profiles: Dict[str, dict], seed: int) -> dict:
         "phases": [
             # {"name": "program-aware-throughput",     "epp_config": "configs/program-aware-throughput.yaml",     "metrics_subsystem": "program_aware"},
             # {"name": "program-aware-ewma",     "epp_config": "configs/program-aware.yaml",     "metrics_subsystem": "program_aware"},
-            {"name": "program-aware-service", "epp_config": "configs/program-aware-service.yaml", "metrics_subsystem": "program_aware"},
+            {"name": "program-aware-las", "epp_config": "configs/program-aware-las.yaml", "metrics_subsystem": "program_aware"},
             {"name": "program-aware-drr", "epp_config": "configs/program-aware-drr.yaml", "metrics_subsystem": "program_aware"},
             {"name": "program-aware-rr",  "epp_config": "configs/program-aware-rr.yaml",   "metrics_subsystem": "program_aware"},
             # {"name": "no-flow-controller",       "epp_config": "configs/baseline.yaml",        "metrics_subsystem": "program_aware"},

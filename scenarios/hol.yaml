@@ -39,8 +39,8 @@ programs:
     no_fairness_header: false
     initial_request_interval: 2
 phases:
-- name: program-aware-service
-  epp_config: configs/program-aware-service.yaml
+- name: program-aware-las
+  epp_config: configs/program-aware-las.yaml
   metrics_subsystem: program_aware
 - name: program-aware-drr
   epp_config: configs/program-aware-drr.yaml

@@ -3,7 +3,7 @@ kind: EndpointPickerConfig
 plugins:
 - type: program-aware-fairness
   parameters:
-    strategy: service
+    strategy: las
     pickLogFile: /tmp/pick.jsonl
 - type: queue-scorer
 - type: max-score-picker
