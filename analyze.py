@@ -2,7 +2,7 @@
 """
 Post-run analysis for test/load-test.
 
-Reads per-phase results.jsonl and metrics.jsonl, produces 12 comparison plots:
+Reads per-phase results.jsonl and metrics.jsonl, produces 13 comparison plots:
   1. latency.png            — P50/P95/P99 end-to-end latency bar chart per program x phase
   2. fairness_index.png     — Jain's fairness index over time, all phases overlaid
   3. wait_time_phases.png   — Per-program EWMA wait time over time, one subplot per phase
@@ -15,6 +15,7 @@ Reads per-phase results.jsonl and metrics.jsonl, produces 12 comparison plots:
  10. queue_depth.png        — Flow-control queue depth per program over time, one subplot per phase
  11. service_rate.png       — Per-program service rate (weighted tokens/sec) over time, one subplot per phase
  12. attained_service.png   — Per-program attained service (weighted tokens) over time, one subplot per phase
+ 13. pick_latency.png       — Pick() latency CDF (microseconds), all phases overlaid
 
 Usage:
     python3 analyze.py results/simple-ab/
@@ -152,7 +153,7 @@ def plot_latency(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -183,7 +184,8 @@ def plot_latency(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Latency (ms)")
+        if i == n - 1:
+            ax.set_xlabel("Latency (ms)")
         ax.set_ylabel("CDF")
         ax.set_ylim(0, 1.05)
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
@@ -252,7 +254,7 @@ def plot_wait_time_phases(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -290,7 +292,8 @@ def plot_wait_time_phases(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("EWMA Wait Time (ms)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -378,7 +381,7 @@ def plot_error_cumulative(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -426,7 +429,8 @@ def plot_error_cumulative(phases: List[str], results_dir: str, out_path: str):
                 any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Cumulative Errors")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -452,7 +456,7 @@ def plot_queue_score_phases(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -496,7 +500,8 @@ def plot_queue_score_phases(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Queue Score")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -523,7 +528,7 @@ def plot_throughput_phases(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -567,7 +572,8 @@ def plot_throughput_phases(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Throughput (tokens/sec)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -594,7 +600,7 @@ def plot_service_rate_phases(phases: List[str], results_dir: str, out_path: str)
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     all_pids: set = set()
@@ -637,7 +643,8 @@ def plot_service_rate_phases(phases: List[str], results_dir: str, out_path: str)
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Service Rate (weighted tokens/sec)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -664,7 +671,7 @@ def plot_attained_service_phases(phases: List[str], results_dir: str, out_path: 
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     all_pids: set = set()
@@ -707,7 +714,8 @@ def plot_attained_service_phases(phases: List[str], results_dir: str, out_path: 
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Attained Service (weighted tokens)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -791,7 +799,7 @@ def plot_latency_scatter(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -835,7 +843,8 @@ def plot_latency_scatter(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Program Start Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Program Start Time (s)")
         ax.set_ylabel("Program Duration (s)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -861,7 +870,7 @@ def plot_first_request_latency(phases: List[str], results_dir: str, out_path: st
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -909,7 +918,8 @@ def plot_first_request_latency(phases: List[str], results_dir: str, out_path: st
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time since phase start (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time since phase start (s)")
         ax.set_ylabel("First Request Latency (s)")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -935,7 +945,7 @@ def plot_queue_depth_phases(phases: List[str], results_dir: str, out_path: str):
     if n == 0:
         return
 
-    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False)
+    fig, axes = plt.subplots(n, 1, figsize=(12, 5 * n), squeeze=False, sharex=True, sharey=True)
     any_data = False
 
     # Collect all program IDs across phases for consistent coloring.
@@ -979,7 +989,8 @@ def plot_queue_depth_phases(phases: List[str], results_dir: str, out_path: str):
             any_data = True
 
         ax.set_title(phase, fontsize=9)
-        ax.set_xlabel("Time (s)")
+        if i == n - 1:
+            ax.set_xlabel("Time (s)")
         ax.set_ylabel("Queue Depth")
         ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1.0), ncol=1)
         ax.grid(alpha=0.3)
@@ -993,6 +1004,69 @@ def plot_queue_depth_phases(phases: List[str], results_dir: str, out_path: str):
     fig.subplots_adjust(right=0.75)
     fig.tight_layout(rect=[0, 0, 0.75, 1])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[analyze] Wrote {out_path}")
+
+
+# ---------------------------------------------------------------------------
+# Plot 13: Pick latency histogram CDF — all phases overlaid
+# ---------------------------------------------------------------------------
+
+def plot_pick_latency(phases: List[str], results_dir: str, out_path: str):
+    fig, ax = plt.subplots(figsize=(10, 4))
+    colors = plt.cm.tab10.colors
+    any_data = False
+
+    for i, phase in enumerate(phases):
+        records = load_metrics(os.path.join(results_dir, phase))
+        if not records:
+            continue
+
+        # Use the last scrape's histogram (cumulative counters).
+        last_hist = None
+        for r in reversed(records):
+            h = r.get("pick_latency")
+            if h and h.get("buckets"):
+                last_hist = h
+                break
+        if last_hist is None:
+            continue
+
+        buckets = last_hist["buckets"]
+        total = last_hist.get("count")
+        if not total or total == 0:
+            continue
+
+        # Sort bucket boundaries numerically (+Inf last).
+        bounds = sorted(
+            ((float("inf") if k == "+Inf" else float(k), v) for k, v in buckets.items()),
+            key=lambda x: x[0],
+        )
+        # Filter out +Inf for plotting; CDF goes to 1.0 at the last finite bucket.
+        finite = [(le, count) for le, count in bounds if le != float("inf")]
+        if not finite:
+            continue
+
+        xs = [le for le, _ in finite]
+        ys = [count / total for _, count in finite]
+        ax.plot(xs, ys, label=phase, color=colors[i % len(colors)], linewidth=1.5,
+                marker="o", markersize=3)
+        any_data = True
+
+    if not any_data:
+        print("[analyze] No pick latency data found, skipping pick_latency.png")
+        plt.close(fig)
+        return
+
+    ax.set_xlabel("Pick Latency (us)")
+    ax.set_ylabel("CDF")
+    ax.set_ylim(0, 1.05)
+    ax.set_xscale("log")
+    ax.legend()
+    ax.grid(alpha=0.3)
+    fig.suptitle("Pick() Latency CDF — All Phases", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
     print(f"[analyze] Wrote {out_path}")
 
@@ -1060,6 +1134,10 @@ def main():
     plot_service_rate_phases(
         phases, results_dir,
         os.path.join(plots_dir, "service_rate.png"),
+    )
+    plot_pick_latency(
+        phases, results_dir,
+        os.path.join(plots_dir, "pick_latency.png"),
     )
     print(f"[analyze] All plots written to {plots_dir}/")
 

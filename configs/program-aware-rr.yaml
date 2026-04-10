@@ -4,6 +4,7 @@ plugins:
 - type: program-aware-fairness
   parameters:
     strategy: rr
+    deferRRCursor: true
     pickLogFile: /tmp/pick.jsonl
 - type: queue-scorer
 - type: max-score-picker

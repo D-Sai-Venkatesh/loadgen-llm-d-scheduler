@@ -14,6 +14,7 @@ Metrics captured (per subsystem prefix):
   {subsystem}_queue_score                        per program_id  (program-aware only)
   {subsystem}_requests_total                     per program_id
   {subsystem}_dispatched_total                   per program_id
+  {subsystem}_pick_latency_microseconds          histogram (buckets/sum/count)
   inference_extension_flow_control_queue_size     per fairness_id
 
 Usage:
@@ -70,6 +71,21 @@ def extract_by_label(metrics: Dict[str, float], metric_name: str, label: str) ->
     return result
 
 
+def extract_histogram(metrics: Dict[str, float], name: str) -> Optional[dict]:
+    """Extract histogram buckets, sum, and count for a metric name."""
+    bucket_prefix = name + '_bucket{le="'
+    buckets = {}
+    for key, val in metrics.items():
+        if key.startswith(bucket_prefix):
+            le = key[len(bucket_prefix):key.index('"}')]
+            buckets[le] = val
+    total = metrics.get(name + "_count")
+    hsum = metrics.get(name + "_sum")
+    if not buckets and total is None and hsum is None:
+        return None
+    return {"buckets": buckets, "sum": hsum, "count": total}
+
+
 # ---------------------------------------------------------------------------
 # Single scrape
 # ---------------------------------------------------------------------------
@@ -93,6 +109,7 @@ def scrape_once(url: str, subsystem: str) -> dict:
     queue_score    = extract_by_label(metrics, f"{subsystem}_queue_score", "program_id")
     service_rate   = extract_by_label(metrics, f"{subsystem}_service_rate_tokens_per_second", "program_id")
     attained_svc   = extract_by_label(metrics, f"{subsystem}_attained_service_tokens", "program_id")
+    pick_latency   = extract_histogram(metrics, f"{subsystem}_pick_latency_microseconds")
 
     # Build per-program dict keyed by all seen program IDs.
     all_ids = set(ewma_wait) | set(requests) | set(dispatched) | set(queue_score) | set(throughput) | set(service_rate) | set(attained_svc)
@@ -113,6 +130,7 @@ def scrape_once(url: str, subsystem: str) -> dict:
     return {
         "ts":             ts,
         "fairness_index": fairness_index,
+        "pick_latency":   pick_latency,
         "per_program":    per_program,
     }
 

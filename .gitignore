@@ -211,3 +211,6 @@ llm-d-inference-scheduler/
 
 # Load test results
 results/
+
+# Claude Code
+.claude/
