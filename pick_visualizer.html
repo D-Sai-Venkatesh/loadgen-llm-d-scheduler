@@ -1007,10 +1007,10 @@ function renderPickDetail() {
     thtml += `<td>${marker}</td>`;
     thtml += `<td>${c.programId}</td>`;
     thtml += `<td class="mono">${c.queueDepth}</td>`;
-    thtml += `<td class="mono">${fmtNum(c.rawValues[0])}</td>`;
-    thtml += `<td class="mono">${fmtNum(c.rawValues[1])}</td>`;
-    thtml += `<td class="mono">${c.normalizedValues[0]?.toFixed(4) ?? '-'}</td>`;
-    thtml += `<td class="mono">${c.normalizedValues[1]?.toFixed(4) ?? '-'}</td>`;
+    thtml += `<td class="mono">${fmtNum(c.rawValues?.[0])}</td>`;
+    thtml += `<td class="mono">${fmtNum(c.rawValues?.[1])}</td>`;
+    thtml += `<td class="mono">${c.normalizedValues?.[0]?.toFixed(4) ?? '-'}</td>`;
+    thtml += `<td class="mono">${c.normalizedValues?.[1]?.toFixed(4) ?? '-'}</td>`;
     thtml += `<td class="mono" style="font-weight:700">${c.score.toFixed(4)}</td>`;
     thtml += '</tr>';
   }
