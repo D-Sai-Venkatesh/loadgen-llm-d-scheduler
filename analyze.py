@@ -1072,6 +1072,345 @@ def plot_pick_latency(phases: List[str], results_dir: str, out_path: str):
 
 
 # ---------------------------------------------------------------------------
+# JSON data export — one file per plot
+# ---------------------------------------------------------------------------
+
+def _write_plot_json(data_dir: str, name: str, data: dict):
+    """Write plot data dict to JSON, skipping if no series."""
+    if not data.get("series"):
+        return
+    path = os.path.join(data_dir, f"{name}.json")
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"[analyze] Wrote {path}")
+
+
+def _extract_metric_series(phases: List[str], results_dir: str, metric_key: str) -> List[dict]:
+    """Extract per-phase, per-program time series for a metric from metrics.jsonl."""
+    all_series = []
+    for phase in phases:
+        records = load_metrics(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        t0 = records[0]["ts"]
+        program_series: Dict[str, list] = {}
+        for r in records:
+            t = r["ts"] - t0
+            for pid, pdata in r.get("per_program", {}).items():
+                val = pdata.get(metric_key)
+                if val is not None:
+                    program_series.setdefault(pid, []).append((t, val))
+        for pid, series in sorted(program_series.items()):
+            xs, ys = zip(*series)
+            all_series.append({
+                "phase": phase,
+                "program_id": pid,
+                "profile": _extract_profile(pid),
+                "x": list(xs),
+                "y": list(ys),
+            })
+    return all_series
+
+
+def _data_latency(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_results(os.path.join(results_dir, phase))
+        groups = group_latencies_by_program(records)
+        for pid, lats in sorted(groups.items()):
+            s = sorted(lats)
+            ys = [(j + 1) / len(s) for j in range(len(s))]
+            series.append({
+                "phase": phase,
+                "program_id": pid,
+                "profile": _extract_profile(pid),
+                "x": s,
+                "y": ys,
+            })
+    return {
+        "plot": "latency",
+        "title": "End-to-End Request Latency CDF by Program",
+        "x_label": "Latency (ms)",
+        "y_label": "CDF",
+        "series": series,
+    }
+
+
+def _data_fairness_index(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_metrics(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        t0 = records[0]["ts"]
+        pairs = [(r["ts"] - t0, r.get("fairness_index"))
+                 for r in records if r.get("fairness_index") is not None]
+        if not pairs:
+            continue
+        xs, ys = zip(*pairs)
+        series.append({"phase": phase, "x": list(xs), "y": list(ys)})
+    return {
+        "plot": "fairness_index",
+        "title": "Jain's Fairness Index Over Time — All Phases",
+        "x_label": "Time (s)",
+        "y_label": "Jain's Fairness Index",
+        "series": series,
+    }
+
+
+def _data_wait_time_phases(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "wait_time_phases",
+        "title": "Per-Program EWMA Wait Time Over Time",
+        "x_label": "Time (s)",
+        "y_label": "EWMA Wait Time (ms)",
+        "series": _extract_metric_series(phases, results_dir, "ewma_wait_ms"),
+    }
+
+
+def _data_wait_time_overlay(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "wait_time_overlay",
+        "title": "Per-Program EWMA Wait Time — All Phases Overlaid",
+        "x_label": "Time (s)",
+        "y_label": "EWMA Wait Time (ms)",
+        "series": _extract_metric_series(phases, results_dir, "ewma_wait_ms"),
+    }
+
+
+def _data_error_cumulative(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_all_results(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        t0 = min(r["completed_at"] for r in records if "completed_at" in r)
+        by_program: Dict[str, List[dict]] = {}
+        for r in records:
+            pid = r.get("program_id", "unknown")
+            by_program.setdefault(pid, []).append(r)
+        for pid, prog_records in sorted(by_program.items()):
+            prog_records.sort(key=lambda r: r.get("completed_at", 0))
+            cum_errors = 0
+            xs, ys = [], []
+            for r in prog_records:
+                if r.get("status") != "ok":
+                    cum_errors += 1
+                t = r.get("completed_at", 0) - t0
+                xs.append(t)
+                ys.append(cum_errors)
+            if cum_errors > 0:
+                series.append({
+                    "phase": phase,
+                    "program_id": pid,
+                    "profile": _extract_profile(pid),
+                    "x": xs,
+                    "y": ys,
+                })
+    return {
+        "plot": "error_cumulative",
+        "title": "Cumulative Errors Per Program Over Time",
+        "x_label": "Time (s)",
+        "y_label": "Cumulative Errors",
+        "series": series,
+    }
+
+
+def _data_queue_score(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "queue_score",
+        "title": "Per-Program Queue Score Over Time",
+        "x_label": "Time (s)",
+        "y_label": "Queue Score",
+        "series": _extract_metric_series(phases, results_dir, "queue_score"),
+    }
+
+
+def _data_program_duration(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_all_results(os.path.join(results_dir, phase))
+        by_program: Dict[str, List[dict]] = {}
+        for r in records:
+            pid = r.get("program_id", "unknown")
+            by_program.setdefault(pid, []).append(r)
+        programs = []
+        for pid, recs in sorted(by_program.items()):
+            sent_times = [r["sent_at"] for r in recs if "sent_at" in r]
+            completed_times = [r["completed_at"] for r in recs if "completed_at" in r]
+            if sent_times and completed_times:
+                programs.append({
+                    "program_id": pid,
+                    "profile": _extract_profile(pid),
+                    "value": max(completed_times) - min(sent_times),
+                })
+        if programs:
+            series.append({"phase": phase, "programs": programs})
+    return {
+        "plot": "program_duration",
+        "title": "Total Program Duration (first send -> last complete)",
+        "x_label": "Program",
+        "y_label": "Duration (s)",
+        "series": series,
+    }
+
+
+def _data_latency_scatter(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_all_results(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        t0 = min(r["sent_at"] for r in records if "sent_at" in r)
+        by_program: Dict[str, List[dict]] = {}
+        for r in records:
+            pid = r.get("program_id", "unknown")
+            by_program.setdefault(pid, []).append(r)
+        points = []
+        for pid, recs in sorted(by_program.items()):
+            sent_times = [r["sent_at"] for r in recs if "sent_at" in r]
+            completed_times = [r["completed_at"] for r in recs if "completed_at" in r]
+            if not sent_times or not completed_times:
+                continue
+            points.append({
+                "program_id": pid,
+                "profile": _extract_profile(pid),
+                "x": min(sent_times) - t0,
+                "y": max(completed_times) - min(sent_times),
+            })
+        if points:
+            series.append({"phase": phase, "points": points})
+    return {
+        "plot": "latency_scatter",
+        "title": "Program Duration vs Start Time",
+        "x_label": "Program Start Time (s)",
+        "y_label": "Program Duration (s)",
+        "series": series,
+    }
+
+
+def _data_first_request_latency(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_results(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        t0 = min(r["sent_at"] for r in records if "sent_at" in r)
+        first_req: Dict[str, dict] = {}
+        for r in records:
+            if "sent_at" not in r or "completed_at" not in r:
+                continue
+            pid = r.get("program_id", "unknown")
+            if pid not in first_req or r["sent_at"] < first_req[pid]["sent_at"]:
+                first_req[pid] = r
+        points = []
+        for pid, r in sorted(first_req.items()):
+            points.append({
+                "program_id": pid,
+                "profile": _extract_profile(pid),
+                "x": r["sent_at"] - t0,
+                "y": r["completed_at"] - r["sent_at"],
+            })
+        if points:
+            series.append({"phase": phase, "points": points})
+    return {
+        "plot": "first_request_latency",
+        "title": "First Request Latency Per Program",
+        "x_label": "Time since phase start (s)",
+        "y_label": "First Request Latency (s)",
+        "series": series,
+    }
+
+
+def _data_queue_depth(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "queue_depth",
+        "title": "Flow-Control Queue Depth Per Program Over Time",
+        "x_label": "Time (s)",
+        "y_label": "Queue Depth",
+        "series": _extract_metric_series(phases, results_dir, "queue_size"),
+    }
+
+
+def _data_service_rate(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "service_rate",
+        "title": "Per-Program Service Rate Over Time",
+        "x_label": "Time (s)",
+        "y_label": "Service Rate (weighted tokens/sec)",
+        "series": _extract_metric_series(phases, results_dir, "service_rate_tps"),
+    }
+
+
+def _data_attained_service(phases: List[str], results_dir: str) -> dict:
+    return {
+        "plot": "attained_service",
+        "title": "Per-Program Attained Service Over Time",
+        "x_label": "Time (s)",
+        "y_label": "Attained Service (weighted tokens)",
+        "series": _extract_metric_series(phases, results_dir, "attained_service"),
+    }
+
+
+def _data_pick_latency(phases: List[str], results_dir: str) -> dict:
+    series = []
+    for phase in phases:
+        records = load_metrics(os.path.join(results_dir, phase))
+        if not records:
+            continue
+        last_hist = None
+        for r in reversed(records):
+            h = r.get("pick_latency")
+            if h and h.get("buckets"):
+                last_hist = h
+                break
+        if last_hist is None:
+            continue
+        buckets = last_hist["buckets"]
+        total = last_hist.get("count")
+        if not total or total == 0:
+            continue
+        bounds = sorted(
+            ((float("inf") if k == "+Inf" else float(k), v) for k, v in buckets.items()),
+            key=lambda x: x[0],
+        )
+        finite = [(le, count) for le, count in bounds if le != float("inf")]
+        if not finite:
+            continue
+        xs = [le for le, _ in finite]
+        ys = [count / total for _, count in finite]
+        series.append({"phase": phase, "x": xs, "y": ys})
+    return {
+        "plot": "pick_latency",
+        "title": "Pick() Latency CDF — All Phases",
+        "x_label": "Pick Latency (us)",
+        "y_label": "CDF",
+        "series": series,
+    }
+
+
+def export_all_plot_data(phases: List[str], results_dir: str, data_dir: str):
+    """Export numerical data for all plots as JSON files."""
+    exports = [
+        ("latency", _data_latency),
+        ("fairness_index", _data_fairness_index),
+        ("wait_time_phases", _data_wait_time_phases),
+        ("wait_time_overlay", _data_wait_time_overlay),
+        ("error_cumulative", _data_error_cumulative),
+        ("queue_score", _data_queue_score),
+        ("program_duration", _data_program_duration),
+        ("latency_scatter", _data_latency_scatter),
+        ("first_request_latency", _data_first_request_latency),
+        ("queue_depth", _data_queue_depth),
+        ("service_rate", _data_service_rate),
+        ("attained_service", _data_attained_service),
+        ("pick_latency", _data_pick_latency),
+    ]
+    for name, fn in exports:
+        _write_plot_json(data_dir, name, fn(phases, results_dir))
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1135,11 +1474,20 @@ def main():
         phases, results_dir,
         os.path.join(plots_dir, "service_rate.png"),
     )
+    plot_attained_service_phases(
+        phases, results_dir,
+        os.path.join(plots_dir, "attained_service.png"),
+    )
     plot_pick_latency(
         phases, results_dir,
         os.path.join(plots_dir, "pick_latency.png"),
     )
     print(f"[analyze] All plots written to {plots_dir}/")
+
+    data_dir = os.path.join(plots_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    export_all_plot_data(phases, results_dir, data_dir)
+    print(f"[analyze] Plot data exported to {data_dir}/")
 
 
 if __name__ == "__main__":
